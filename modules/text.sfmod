@@ -1,0 +1,267 @@
+#!/usr/bin/env sh
+
+###############################################################################
+# MODULE : text.sfmod
+# SUMMARY : Text related functions for formatting, enhancing, etc
+###############################################################################
+#
+
+###############################################################################
+# Required sfmod Definitions
+###############################################################################
+
+MOD_NAME='sfmod-text'
+MOD_VERSION='1.0.0'
+MOD_AUTHOR='admin@dtrh.net'
+MOD_SUMMARY='This module provides functions for text manipulation'
+
+# Outputs module information (one piece of data per line for easier parsing)
+MOD_INFO() {
+    echo "$MOD_NAME"
+    echo "$MOD_VERSION"
+    echo "$MOD_AUTHOR"
+    echo "$MOD_SUMMARY"
+}
+
+# Command list is found when sfmod returns this via MOD_COMMANDS. POSIX env does
+# not support arrays
+MOD_COMMANDS() {
+    echo "txtToLower txtSpacer txtRainbow txtHeader txtKeyword txtTable txtCecho"
+}
+
+###############################################################################
+# Supportive Text
+###############################################################################
+#
+# Each command to be reigistered must export a summary text to be used by teh 
+# main script when listing commands, as well as should have a help string, 
+# which will be displayed when a module loads a command, and that command is 
+# used with the long form help option 
+#
+# eg. txtToLower --help
+#     > Usage: txtToLower <text> ...
+#
+
+export txtToLower_summary="Convert string to all lower case"
+txtToLower_help="Usage: txtToLower <text>
+Converts the input text to lowercase.
+Example: txtToLower 'HELLO' # Outputs: hello."
+
+export txtSpacer_summary="Create a horizontal line spacer of a given thickness and character or pattern"
+txtSpacer_help="Usage: txtSpacer <count>
+Prints <count> line breaks.
+Example: txtSpacer 3"
+
+export txtRainbow_summary="Convert a text string into a rainbow colored string"
+txtRainbow_help="Usage: txtRainbow <text>
+Prints the input text in randomly colored characters."
+
+export txtHeader_summary="Draw a predefined header to screen"
+txtHeader_help="Usage: txtHeader <title>
+Prints a header line with the given title.
+Example: txtHeader 'My Header'"
+
+export txtKeyword_summary="Given text data either as a variable or piped via STDOUT, highlight a keyword"
+txtKeyword_help="Usage: txtKeyword <text> <keyword>
+Highlights occurrences of the keyword in the text.
+Example: txtKeyword 'Hello World' 'World'"
+
+export txtTable_summary="Create a data table"
+txtTable_help="Usage: txtTable <data>...
+Prints the provided arguments in a tabular format."
+
+export txtCecho_summary="The equivalent of the echo command, only with color easily built in"
+txtCecho_help="Usage: txtCecho <text> [color] [style]
+Prints text with optional color and style formatting.
+Example: txtCecho 'Hello' red bold"
+
+
+
+###############################################################################
+# COMMAND IMPLEMENTATION
+#
+
+# -----------------------------------------------------------------------------
+# txtToLower() - Convert text to lowercase
+# -----------------------------------------------------------------------------
+txtToLower() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtToLower_help"
+    return 0
+  fi
+
+  input="$1"
+  if [ -z "$input" ]; then
+    echo "Error: No input provided for txtToLower." >&2
+    return 1
+  fi
+
+  printf '%s' "$input" | tr '[:upper:]' '[:lower:]'
+}
+
+
+# -----------------------------------------------------------------------------
+# txtSpacer() - Add line breaks
+# -----------------------------------------------------------------------------
+txtSpacer() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtSpacer_help"
+    return 0
+  fi
+
+  count="$1"
+  if [ -z "$count" ] || [ "$count" -le 0 ] 2>/dev/null; then
+    echo "Error: Invalid count for txtSpacer." >&2
+    return 1
+  fi
+
+  while [ "$count" -gt 0 ]; do
+    printf "\n"
+    count=$((count - 1))
+  done
+}
+
+txtRainbow() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtRainbow_help"
+    return 0
+  fi
+
+  input="$1"
+  if [ -z "$input" ]; then
+    echo "Error: No input provided for txtRainbow." >&2
+    return 1
+  fi
+
+  # Generate random numbers using `awk` for POSIX compliance
+  random_color() {
+    awk -v seed="$(date +%s%N)" 'BEGIN { srand(seed); printf("%d\n", rand() * 255) }'
+  }
+
+  # Loop through each character in the input
+  for char in $(printf "%s" "$input" | sed -e 's/./& /g'); do
+    printf "\033[38;5;$(random_color)m%s\033[0m" "$char"
+  done
+  echo
+}
+
+
+###############################################################################
+# Print a formatted header
+###############################################################################
+txtHeader() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtHeader_help"
+    return 0
+  fi
+
+  header="$1"
+  if [ -z "$header" ]; then
+    echo "Error: No header provided for txtHeader." >&2
+    return 1
+  fi
+
+  echo "===== $header ====="
+}
+
+###############################################################################
+# Highlight a keyword in text
+###############################################################################
+txtKeyword() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtKeyword_help"
+    return 0
+  fi
+
+  text="$1"
+  keyword="$2"
+  if [ -z "$text" ] || [ -z "$keyword" ]; then
+    echo "Error: Both text and keyword are required for txtKeyword." >&2
+    return 1
+  fi
+
+  echo "$text" | sed "s/$keyword/\033[1;31m$keyword\033[0m/g"
+}
+
+###############################################################################
+# Generate a data table (simple example)
+###############################################################################
+txtTable() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtTable_help"
+    return 0
+  fi
+
+  echo "$@"
+}
+
+###############################################################################
+# Colorized echo
+###############################################################################
+txtCecho() {
+  if [ "$1" = "--help" ]; then
+    echo "$txtCecho_help"
+    return 0
+  fi
+
+  text="$1"
+  color_input="$2"
+  style="$3"
+
+  [ -z "$text" ] && text="(no text supplied)"
+  [ -z "$color_input" ] && color_input="white"
+  [ -z "$style" ] && style="0"
+
+  style_code="$style"
+  named_color_code=""
+
+  case "$color_input" in
+    black)   named_color_code="30" ;;
+    red)     named_color_code="31" ;;
+    green)   named_color_code="32" ;;
+    yellow)  named_color_code="33" ;;
+    blue)    named_color_code="34" ;;
+    magenta) named_color_code="35" ;;
+    cyan)    named_color_code="36" ;;
+    white)   named_color_code="37" ;;
+    *)
+      if [ "$color_input" -eq "$color_input" ] 2>/dev/null; then
+        printf "\033[${style_code};38;5;${color_input}m%s\033[0m\n" "$text"
+        return 0
+      fi
+      named_color_code="37"
+      ;;
+  esac
+
+  printf "\033[${style_code};${named_color_code}m%s\033[0m\n" "$text"
+}
+
+###############################################################################
+# Generate ASCII Art using figlet
+###############################################################################
+ascii_art_help="Usage: ascii_art <text>
+Generates ASCII art for the input text using figlet.
+Requirements: figlet must be installed.
+Example: ascii_art 'Hello World'"
+
+ascii_art() {
+  if [ "$1" = "--help" ]; then
+    echo "$ascii_art_help"
+    return 0
+  fi
+
+  input="$1"
+  if [ -z "$input" ]; then
+    echo "Error: No input provided for ascii_art." >&2
+    return 1
+  fi
+
+  # Ensure figlet is installed
+  if ! command -v figlet >/dev/null 2>&1; then
+    echo "Error: figlet is not installed. Please install it to use ascii_art." >&2
+    return 1
+  fi
+
+  # Generate ASCII art
+  figlet "$input"
+}
